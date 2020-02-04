@@ -9,6 +9,7 @@ import org.json4s._
 import org.json4s.native.Serialization
 import org.json4s.native.Serialization.{write}
 import org.json4s.native.JsonMethods._
+import scala.collection.mutable
 import scala.util.{Try, Success, Failure}
 
 case class Response(action: String, id: String, status: String, message: Option[String] = None)
@@ -18,24 +19,35 @@ object Plan extends async.Plan with ServerErrorResponse {
 
   implicit val formats = Serialization.formats(NoTypeHints)
 
+  val schemas: mutable.Map[String, String] = mutable.Map.empty
+  val rules: mutable.Map[String, Rules] = mutable.Map.empty
+
   def intent = {
 
+    // The response format for this endpoint isn't specified in the docs
+    case req @ GET(Path(Seg("schema" :: schemaID :: Nil))) & Accepts.Json(_) => {
+      schemas.get(schemaID) match {
+        case Some(s) => req.respond(JsonContent ~> ResponseString(s))
+        case None => req.respond(NotFound)
+      }
+    }
+
     case req @ POST(Path(Seg("schema" :: schemaID :: Nil))) & Accepts.Json(_) => {
-      Try(parse(Body.string(req))) match {
+      val body = Body.string(req)
+      Try(parse(body)) match {
+
         case Success(json) => {
+          // Any sensible design would persist this somewhere else like Redis, Postgresql or DynamoDB
+          schemas += (schemaID -> body)
           val res = Response("uploadSchema", schemaID, "success")
           req.respond(JsonContent ~> ResponseString(write(res)))
         }
+
         case Failure(e) => {
           val res = Response("uploadSchema", schemaID, "error", Some(e.getMessage))
           req.respond(BadRequest ~> ResponseString(write(res)))
         }
       }
-    }
-
-    case req @ GET(Path(Seg("schema" :: schemaID :: Nil))) & Accepts.Json(_) => {
-      val res = Response("uploadSchema", schemaID, "success")
-      req.respond(JsonContent ~> ResponseString(write(res)))
     }
 
     case req @ POST(Path(Seg("validate" :: schemaID :: Nil))) & Accepts.Json(_) => {
