@@ -39,6 +39,9 @@ object Plan extends async.Plan with ServerErrorResponse {
         case Success(json) => {
           // Any sensible design would persist this somewhere else like Redis, Postgresql or DynamoDB
           schemas += (schemaID -> body)
+          val schemaRules = Rules.parse(json)
+          rules += (schemaID -> schemaRules)
+
           val res = Response("uploadSchema", schemaID, "success")
           req.respond(JsonContent ~> ResponseString(write(res)))
         }
@@ -51,10 +54,29 @@ object Plan extends async.Plan with ServerErrorResponse {
     }
 
     case req @ POST(Path(Seg("validate" :: schemaID :: Nil))) & Accepts.Json(_) => {
-      val res = Response("uploadSchema", schemaID, "success")
-      req.respond(JsonContent ~> ResponseString(write(res)))
+      rules.get(schemaID) match {
+        case None => req.respond(NotFound)
+        case Some(r) => {
+          val body = Body.string(req)
+          Try(parse(body)) match {
+            case Success(json) => {
+              val errors: Seq[String] = r.validate(json).collect { case Some(e) => e }
+              if (errors.size == 0) {
+                val res = Response("validateDocument", schemaID, "success")
+                req.respond(JsonContent ~> ResponseString(write(res)))
+              } else {
+                val res = Response("validateDocument", schemaID, "error", Some(errors.mkString("\n")))
+                req.respond(JsonContent ~> ResponseString(write(res)))
+              }
+            }
+            case Failure(e) => {
+              val res = Response("validateDocument", schemaID, "error", Some(e.getMessage))
+              req.respond(BadRequest ~> ResponseString(write(res)))
+            }
+          }
+        }
+      }
     }
   }
-
 }
 

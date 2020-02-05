@@ -1,4 +1,4 @@
-name := "Ifany"
+name := "Validator"
 
 version := "1.0"
 
