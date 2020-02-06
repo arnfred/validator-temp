@@ -25,6 +25,7 @@ case class MaxRule(path: Seq[String], threshold: BigInt) extends Rule {
 case class TypeIntRule(path: Seq[String]) extends Rule {
   def validate(json: JValue) = value(json) match {
     case JInt(_) => None
+    case JNothing => None
     case _ => Some(s"Key ${key} must be an integer")
   }
 }
@@ -32,6 +33,7 @@ case class TypeIntRule(path: Seq[String]) extends Rule {
 case class TypeStringRule(path: Seq[String]) extends Rule {
   def validate(json: JValue) = value(json) match {
     case JString(_) => None
+    case JNothing => None
     case _ => Some(s"Key ${key} must be a string")
   }
 }
@@ -39,6 +41,7 @@ case class TypeStringRule(path: Seq[String]) extends Rule {
 case class TypeObjectRule(path: Seq[String]) extends Rule {
   def validate(json: JValue) = value(json) match {
     case JObject(n) => None
+    case JNothing => None
     case _ => Some(s"Key ${key} must be an object")
   }
 }

@@ -187,6 +187,17 @@ class PlanSpec extends mutable.Specification with unfiltered.specs2.netty.Served
           response.body.string === expected
         }
       }
+
+      "return success despite a type error for a missing key" in {
+        val schema = """{ "properties": { "n": { "type": "string" } } }"""
+        val json = "{}"
+        post("schema/missing-key", schema) { response => ok }
+        post("validate/missing-key", json) { response =>
+          val expected = """{"action":"validateDocument","id":"missing-key","status":"success"}"""
+          response.code === 200
+          response.body.string === expected
+        }
+      }
     }
   }
 }
